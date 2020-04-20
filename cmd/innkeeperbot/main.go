@@ -76,8 +76,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
-	// If the message starts with "!nc", create a new custom channel. Parameters: name, privacy [public or private](default public, optional)
-	if strings.HasPrefix(m.Content, "!nch") {
+	// If the message starts with "!new", create a new custom channel. Parameters: name, privacy [public or private](default public, optional)
+	if strings.HasPrefix(m.Content, "!new") {
 		// Parameters should contains the channel name and the privacy preference
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 1 {
@@ -98,12 +98,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		newChannel, _ := s.GuildChannelCreateComplex(m.GuildID, newChannelData)
 
+		// Allow the channel creator and the bot to join the channel
+		s.ChannelPermissionSet(newChannel.ID, s.State.User.ID, "member", 0x00100000|0x00000010, 0)
+		s.ChannelPermissionSet(newChannel.ID, m.Author.ID, "member", 0x00100000|0x00000010, 0)
+
 		if len(parameters) > 2 && parameters[2] == "private" {
 			roleEveryone := searchRole(s, m.GuildID, "@everyone")
-
-			// Allow the channel creator and the bot to join the channel
-			s.ChannelPermissionSet(newChannel.ID, s.State.User.ID, "member", 0x00100000, 0)
-			s.ChannelPermissionSet(newChannel.ID, m.Author.ID, "member", 0x00100000, 0)
 			// Deny anyone else joining this channel
 			s.ChannelPermissionSet(newChannel.ID, roleEveryone.ID, "role", 0, 0x00100000)
 		}
@@ -111,8 +111,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "New channel created: "+parameters[1])
 	}
 
-	// If the message starts with "!dc", delete a custom channel. Parameters: name
-	if strings.HasPrefix(m.Content, "!dch") {
+	// If the message starts with "!del", delete a custom channel. Parameters: name
+	if strings.HasPrefix(m.Content, "!del") {
 		// Parameters should contains the name of the channel to delete
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 1 {
@@ -133,10 +133,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelDelete(channel.ID)
 			s.ChannelMessageSend(m.ChannelID, "Channel "+parameters[1]+" deleted")
 		} else {
-			// Check if the user has got permissions
+			// Check if the user has got manage channels permissions
 			authorized := false
 			for _, role := range channel.PermissionOverwrites {
-				if role.ID == m.Author.ID {
+				if role.ID == m.Author.ID && role.Allow&0x00000010 == 0x00000010 {
 					authorized = true
 				}
 			}
@@ -148,11 +148,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				s.ChannelMessageSend(m.ChannelID, "You don't have the permission to delete this channel")
 			}
 		}
-
 	}
 
-	// If the message starts with "!apc", enable an user to join the channel. Parameters: channel name, user name
-	if strings.HasPrefix(m.Content, "!apc") {
+	// If the message starts with "!add", enable an user to join the channel. Parameters: channel name, user name
+	if strings.HasPrefix(m.Content, "!add") {
 		// Parameters should contains the channel name and the username
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 2 {
@@ -185,7 +184,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Check if the user has got permissions
 		authorized := false
 		for _, role := range channel.PermissionOverwrites {
-			if role.ID == m.Author.ID {
+			if role.ID == m.Author.ID && role.Allow&0x00000010 == 0x00000010 {
 				authorized = true
 			}
 		}
@@ -198,8 +197,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 
-	// If the message starts with "!rpc", remove from an user the permission to join the channel. Parameters: channel name, user name
-	if strings.HasPrefix(m.Content, "!rpc") {
+	// If the message starts with "!rem", remove from an user the permission to join the channel. Parameters: channel name, user name
+	if strings.HasPrefix(m.Content, "!rem") {
 		// Parameters should contains the channel name and the username
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 2 {
@@ -233,7 +232,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Check if the user has got permissions
 		authorized := false
 		for _, role := range channel.PermissionOverwrites {
-			if role.ID == m.Author.ID {
+			if role.ID == m.Author.ID && role.Allow&0x00000010 == 0x00000010 {
 				authorized = true
 			}
 		}
@@ -247,6 +246,102 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	}
 
+	// If the message starts with "!op", enable an user to manage the channel. Parameters: channel name, user name
+	if strings.HasPrefix(m.Content, "!op") {
+		// Parameters should contains the channel name and the username
+		parameters := strings.Fields(m.Content)
+		if len(parameters) < 2 {
+			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name")
+			return
+		}
+
+		category := searchChannel(s, m.GuildID, "Personalizzato", "")
+		if category == nil {
+			s.ChannelMessageSend(m.ChannelID, "Unable to delete channel, category not found")
+		}
+
+		channel := searchChannel(s, m.GuildID, parameters[1], category.ID)
+		if channel == nil {
+			s.ChannelMessageSend(m.ChannelID, "Channel "+parameters[1]+" not found, unable to add permission")
+			return
+		}
+
+		user := searchUser(s, m.GuildID, parameters[2])
+		if user == nil {
+			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" not found")
+			return
+		}
+
+		if len(channel.PermissionOverwrites) == 0 {
+			s.ChannelMessageSend(m.ChannelID, "You cannot change permissions of a public channel")
+			return
+		}
+
+		// Check if the user has got permissions
+		authorized := false
+		for _, role := range channel.PermissionOverwrites {
+			if role.ID == m.Author.ID && role.Allow&0x00000010 == 0x00000010 {
+				authorized = true
+			}
+		}
+
+		if authorized {
+			s.ChannelPermissionSet(channel.ID, user.ID, "member", 0x00100000|0x00000010, 0)
+			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" can now manage "+parameters[1])
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "You don't have the permission to authorize an user to manage "+parameters[1])
+		}
+	}
+
+	// If the message starts with "!rem", remove from an user the permission to manage the channel. Parameters: channel name, user name
+	if strings.HasPrefix(m.Content, "!deop") {
+		// Parameters should contains the channel name and the username
+		parameters := strings.Fields(m.Content)
+		if len(parameters) < 2 {
+			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name")
+			return
+		}
+
+		category := searchChannel(s, m.GuildID, "Personalizzato", "")
+
+		if category == nil {
+			s.ChannelMessageSend(m.ChannelID, "Unable to delete channel, category not found")
+		}
+
+		channel := searchChannel(s, m.GuildID, parameters[1], category.ID)
+		if channel == nil {
+			s.ChannelMessageSend(m.ChannelID, "Channel "+parameters[1]+" not found, unable to remove permission")
+			return
+		}
+
+		user := searchUser(s, m.GuildID, parameters[2])
+		if user == nil {
+			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" not found")
+			return
+		}
+
+		if len(channel.PermissionOverwrites) == 0 {
+			s.ChannelMessageSend(m.ChannelID, "You cannot change permissions of a public channel")
+			return
+		}
+
+		// Check if the user has got permissions
+		authorized := false
+		for _, role := range channel.PermissionOverwrites {
+			if role.ID == m.Author.ID && role.Allow&0x00000010 == 0x00000010 {
+				authorized = true
+			}
+		}
+
+		if authorized {
+			s.ChannelPermissionSet(channel.ID, user.ID, "member", 0x00100000, 0)
+			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" cannot manage "+parameters[1]+" anymore")
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "You don't have the permission to revoke the authorization of an user to manage "+parameters[1])
+		}
+
+	}
+
 	// If the message starts with "!rpc", remove from an user the permission to join the channel. Parameters: channel name, user name
 	if strings.HasPrefix(m.Content, "!help") {
 
@@ -256,19 +351,27 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			Color:       0x00ff00,
 			Fields: []*discordgo.MessageEmbedField{
 				&discordgo.MessageEmbedField{
-					Name:  "!nch <channel> [private]",
+					Name:  "!new <channel> [private]",
 					Value: "Create a new channel. Add the \"private\" keyword at the end of the command to make that channel private",
 				},
 				&discordgo.MessageEmbedField{
-					Name:  "!dch <channel>",
+					Name:  "!del <channel>",
 					Value: "Delete an existing channel",
 				},
 				&discordgo.MessageEmbedField{
-					Name:  "!apc <channel> <user>",
+					Name:  "!add <channel> <user>",
+					Value: "Give an user the permission to join a channel",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "!rem <channel> <user>",
+					Value: "Remove join permission from an user",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "!op <channel> <user>",
 					Value: "Give an user the permission to join, edit and delete a channel",
 				},
 				&discordgo.MessageEmbedField{
-					Name:  "!rpc <channel> <user>",
+					Name:  "!deop <channel> <user>",
 					Value: "Remove join/edit/delete permission from an user",
 				},
 			},
