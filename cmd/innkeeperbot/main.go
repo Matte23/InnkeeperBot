@@ -155,9 +155,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Parameters should contains the channel name and the username
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 2 {
-			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name")
+			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name and the username")
 			return
 		}
+
+		username := strings.TrimPrefix(m.Content, parameters[0]+" "+parameters[1]+" ")
 
 		category := searchChannel(s, m.GuildID, "Personalizzato", "")
 		if category == nil {
@@ -170,9 +172,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 
-		user := searchUser(s, m.GuildID, parameters[2])
+		user := searchUser(s, m.GuildID, username)
 		if user == nil {
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" not found")
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" not found")
 			return
 		}
 
@@ -191,7 +193,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		if authorized {
 			s.ChannelPermissionSet(channel.ID, user.ID, "member", 0x00100000, 0)
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" can now join "+parameters[1])
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" can now join "+parameters[1])
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "You don't have the permission to authorize an user to join "+parameters[1])
 		}
@@ -202,9 +204,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Parameters should contains the channel name and the username
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 2 {
-			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name")
+			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name and the username")
 			return
 		}
+
+		username := strings.TrimPrefix(m.Content, parameters[0]+" "+parameters[1]+" ")
 
 		category := searchChannel(s, m.GuildID, "Personalizzato", "")
 
@@ -218,9 +222,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 
-		user := searchUser(s, m.GuildID, parameters[2])
+		user := searchUser(s, m.GuildID, username)
 		if user == nil {
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" not found")
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" not found")
 			return
 		}
 
@@ -239,7 +243,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		if authorized {
 			s.ChannelPermissionDelete(channel.ID, user.ID)
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" cannot join "+parameters[1]+" anymore")
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" cannot join "+parameters[1]+" anymore")
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "You don't have the permission to revoke the authorization of an user to join "+parameters[1])
 		}
@@ -251,9 +255,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// Parameters should contains the channel name and the username
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 2 {
-			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name")
+			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name and the username")
 			return
 		}
+
+		username := strings.TrimPrefix(m.Content, parameters[0]+" "+parameters[1]+" ")
 
 		category := searchChannel(s, m.GuildID, "Personalizzato", "")
 		if category == nil {
@@ -266,9 +272,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 
-		user := searchUser(s, m.GuildID, parameters[2])
+		user := searchUser(s, m.GuildID, username)
 		if user == nil {
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" not found")
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" not found")
 			return
 		}
 
@@ -287,20 +293,22 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		if authorized {
 			s.ChannelPermissionSet(channel.ID, user.ID, "member", 0x00100000|0x00000010, 0)
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" can now manage "+parameters[1])
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" can now manage "+parameters[1])
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "You don't have the permission to authorize an user to manage "+parameters[1])
 		}
 	}
 
-	// If the message starts with "!rem", remove from an user the permission to manage the channel. Parameters: channel name, user name
+	// If the message starts with "!deop", remove from an user the permission to manage the channel. Parameters: channel name, user name
 	if strings.HasPrefix(m.Content, "!deop") {
 		// Parameters should contains the channel name and the username
 		parameters := strings.Fields(m.Content)
 		if len(parameters) < 2 {
-			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name")
+			s.ChannelMessageSend(m.ChannelID, "Please specify the channel name and the username")
 			return
 		}
+
+		username := strings.TrimPrefix(m.Content, parameters[0]+" "+parameters[1]+" ")
 
 		category := searchChannel(s, m.GuildID, "Personalizzato", "")
 
@@ -314,9 +322,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 
-		user := searchUser(s, m.GuildID, parameters[2])
+		user := searchUser(s, m.GuildID, username)
 		if user == nil {
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" not found")
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" not found")
 			return
 		}
 
@@ -335,7 +343,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		if authorized {
 			s.ChannelPermissionSet(channel.ID, user.ID, "member", 0x00100000, 0)
-			s.ChannelMessageSend(m.ChannelID, "User "+parameters[2]+" cannot manage "+parameters[1]+" anymore")
+			s.ChannelMessageSend(m.ChannelID, "User "+username+" cannot manage "+parameters[1]+" anymore")
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "You don't have the permission to revoke the authorization of an user to manage "+parameters[1])
 		}
