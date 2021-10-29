@@ -49,6 +49,8 @@ func main() {
 
 	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(handleMessage)
+	dg.AddHandler(handleVoiceActivity)
+	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsAll)
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
@@ -65,6 +67,26 @@ func main() {
 
 	// Cleanly close down the Discord session.
 	dg.Close()
+}
+
+func handleVoiceActivity(s *discordgo.Session, vs *discordgo.VoiceStateUpdate) {
+	if val, ok := newChannelEndpoint[vs.GuildID]; ok {
+		if vs.ChannelID == "" {
+			removeUserFromChannels(s, vs)
+			return
+		}
+
+		if vs.ChannelID == val.ID {
+			removeUserFromChannels(s, vs)
+			createNewChannel(s, vs)
+		} else if _, ok := createdChannels[vs.GuildID][vs.ChannelID]; ok {
+			createdChannels[vs.GuildID][vs.ChannelID] = append(createdChannels[vs.GuildID][vs.ChannelID], vs.UserID)
+		} else {
+			removeUserFromChannels(s, vs)
+		}
+	} else {
+		initChannels(s, vs.GuildID)
+	}
 }
 
 // This function will be called (due to AddHandler above) every time a new

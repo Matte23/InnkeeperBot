@@ -1,6 +1,8 @@
 package main
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"github.com/bwmarrin/discordgo"
+)
 
 func searchChannel(s *discordgo.Session, guildID string, channelName string, channelParent string) (channel *discordgo.Channel) {
 	channels, _ := s.GuildChannels(guildID)
@@ -14,6 +16,24 @@ func searchChannel(s *discordgo.Session, guildID string, channelName string, cha
 	}
 
 	return nil
+}
+
+func getAllChannelsUnderCategory(s *discordgo.Session, guildID string, channelParent string) (channels []*discordgo.Channel) {
+	allChannels, _ := s.GuildChannels(guildID)
+
+	for _, channel := range allChannels {
+		if channelParent == "" || channel.ParentID == channelParent {
+			channels = append(channels, channel)
+		}
+	}
+
+	return channels
+}
+
+func deleteAllChannelsUnderCategory(s *discordgo.Session, guildID string, channelParent string) {
+	for _, channel := range getAllChannelsUnderCategory(s, guildID, channelParent) {
+		s.ChannelDelete(channel.ID)
+	}
 }
 
 func searchRole(s *discordgo.Session, guildID string, roleName string) (role *discordgo.Role) {
@@ -38,4 +58,18 @@ func searchUser(s *discordgo.Session, guildID string, userName string) (role *di
 	}
 
 	return nil
+}
+
+func contains(s []string, e string) int {
+	for i, a := range s {
+		if a == e {
+			return i
+		}
+	}
+	return -1
+}
+
+func remove(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
 }
