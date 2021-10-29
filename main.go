@@ -1,5 +1,5 @@
 // InnkeeperBot, a bot to create and manage custom channels
-// Copyright (C) 2020 Matteo Schiff
+// Copyright (C) 2020-2021 Matteo Schiff
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
