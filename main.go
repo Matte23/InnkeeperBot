@@ -50,6 +50,7 @@ func main() {
 	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(handleMessage)
 	dg.AddHandler(handleVoiceActivity)
+	dg.AddHandler(handlePresenceUpdate)
 	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsAll)
 
 	// Open a websocket connection to Discord and begin listening.
@@ -86,6 +87,20 @@ func handleVoiceActivity(s *discordgo.Session, vs *discordgo.VoiceStateUpdate) {
 		}
 	} else {
 		initChannels(s, vs.GuildID)
+	}
+}
+
+func handlePresenceUpdate(s *discordgo.Session, pu *discordgo.PresenceUpdate) {
+	if _, ok := newChannelEndpoint[pu.GuildID]; ok {
+		for channelID, channel := range createdChannels[pu.GuildID] {
+			for _, user := range channel {
+				if user == pu.User.ID {
+					updateChannelName(s, pu.GuildID, channelID)
+				}
+			}
+		}
+	} else {
+		initChannels(s, pu.GuildID)
 	}
 }
 

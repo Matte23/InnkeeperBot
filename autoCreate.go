@@ -73,6 +73,26 @@ func removeUserFromChannels(s *discordgo.Session, vs *discordgo.VoiceStateUpdate
 	}
 }
 
+func updateChannelName(s *discordgo.Session, guildID string, channelID string) {
+	programs := make(map[string]int)
+
+	for _, userID := range createdChannels[guildID][channelID] {
+		programs[getActivity(s.State, guildID, userID)] += 1
+	}
+
+	max := -1
+	name := "Stanza"
+
+	for program, count := range programs {
+		if count > max {
+			max = count
+			name = program
+		}
+	}
+
+	s.ChannelEdit(channelID, name)
+}
+
 func getActivity(st *discordgo.State, guildID string, userID string) string {
 	presence, err := st.Presence(guildID, userID)
 
