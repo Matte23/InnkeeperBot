@@ -51,7 +51,7 @@ func main() {
 	dg.AddHandler(handleMessage)
 	dg.AddHandler(handleVoiceActivity)
 	dg.AddHandler(handlePresenceUpdate)
-	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsAll)
+	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages | discordgo.IntentsGuildVoiceStates | discordgo.IntentsGuildPresences | discordgo.IntentsGuildMembers)
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
