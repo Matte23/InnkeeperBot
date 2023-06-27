@@ -26,37 +26,56 @@ var createdChannels = make(map[string]map[string][]string)
 var categoryName = "Gaming🎮"
 
 func initChannels(s *discordgo.Session, guildID string) {
+	log.Debugf("Preparing guild %s for automatic channel management", guildID)
+
 	category := searchChannel(s, guildID, categoryName, "")
 	if category == nil {
+		log.Errorf("Cannot find category %s in guild %s", categoryName, guildID)
 		return
 	}
 
 	deleteAllChannelsUnderCategory(s, guildID, category.ID)
-	createNewChannelEndpoint(s, guildID)
+	createNewChannelEndpoint(s, guildID, category.ID)
 
 	createdChannels[guildID] = make(map[string][]string)
 }
 
-func createNewChannelEndpoint(s *discordgo.Session, guildID string) {
-	category := searchChannel(s, guildID, categoryName, "")
-	if category == nil {
-		return
-	}
+func createNewChannelEndpoint(s *discordgo.Session, guildID string, channelParent string) {
 
 	newChannelData := discordgo.GuildChannelCreateData{
 		Name:     "Crea nuovo canale",
 		Type:     discordgo.ChannelTypeGuildVoice,
-		ParentID: category.ID}
+		ParentID: channelParent}
 
-	newChannelEndpoint[guildID], _ = s.GuildChannelCreateComplex(guildID, newChannelData)
+	var err error
+	newChannelEndpoint[guildID], err = s.GuildChannelCreateComplex(guildID, newChannelData)
+
+	if err != nil {
+		log.Errorf("Cannot create channel with name %s in guild %s. This guild is in a corrupted state", newChannelData.Name, guildID)
+		return
+	}
+
+	log.Debugf("Created channel with name %s in guild %s", newChannelData.Name, guildID)
 }
 
 func createNewChannel(s *discordgo.Session, vs *discordgo.VoiceStateUpdate) {
-	channelName := getActivity(s.State, vs.GuildID, vs.UserID)
-	s.ChannelEdit(vs.ChannelID, channelName)
-	createdChannels[vs.GuildID][vs.ChannelID] = []string{vs.UserID}
+	category := searchChannel(s, vs.GuildID, categoryName, "")
+	if category == nil {
+		log.Errorf("Cannot find category %s in guild %s", categoryName, vs.GuildID)
+		return
+	}
 
-	createNewChannelEndpoint(s, vs.GuildID)
+	channelName := getActivity(s.State, vs.GuildID, vs.UserID)
+	editChannelData := discordgo.ChannelEdit{Name: channelName}
+	_, err := s.ChannelEdit(vs.ChannelID, &editChannelData)
+	if err != nil {
+		log.Errorf("Cannot rename channel %s with new name %s in guild %s", vs.ChannelID, channelName, vs.GuildID)
+		return
+	}
+	createdChannels[vs.GuildID][vs.ChannelID] = []string{vs.UserID}
+	log.Debugf("Renamed channel %s to %s in guild %s", vs.ChannelID, channelName, vs.GuildID)
+
+	createNewChannelEndpoint(s, vs.GuildID, category.ID)
 }
 
 func removeUserFromChannels(s *discordgo.Session, vs *discordgo.VoiceStateUpdate) {
@@ -65,7 +84,13 @@ func removeUserFromChannels(s *discordgo.Session, vs *discordgo.VoiceStateUpdate
 
 		if index != -1 {
 			if len(channel) == 1 {
-				s.ChannelDelete(channelID)
+				_, err := s.ChannelDelete(channelID)
+				if err != nil {
+					log.Errorf("Cannot delete channel %s in guild %s", channelID, vs.GuildID)
+				} else {
+					log.Debugf("Channel %s deleted in guild %s", channelID, vs.GuildID)
+					delete(createdChannels[vs.GuildID], channelID)
+				}
 			} else {
 				createdChannels[vs.GuildID][channelID] = remove(channel, index)
 			}
@@ -90,7 +115,24 @@ func updateChannelName(s *discordgo.Session, guildID string, channelID string) {
 		}
 	}
 
-	s.ChannelEdit(channelID, name)
+	channel, err := s.Channel(channelID)
+	if err != nil {
+		log.Errorf("Channel %s not found in guild %s", channelID, guildID)
+		return
+	}
+
+	oldName := channel.Name
+
+	if oldName == name {
+		return
+	}
+
+	editChannelData := discordgo.ChannelEdit{Name: name}
+	_, err = s.ChannelEdit(channelID, &editChannelData)
+	if err != nil {
+		log.Errorf("Cannot rename channel %s with new name %s in guild %s", channelID, name, guildID)
+	}
+	log.Debugf("Renamed channel %s from %s to %s in guild %s", channelID, oldName, name, guildID)
 }
 
 func getActivity(st *discordgo.State, guildID string, userID string) string {

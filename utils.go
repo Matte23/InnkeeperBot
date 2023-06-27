@@ -48,7 +48,12 @@ func getAllChannelsUnderCategory(s *discordgo.Session, guildID string, channelPa
 
 func deleteAllChannelsUnderCategory(s *discordgo.Session, guildID string, channelParent string) {
 	for _, channel := range getAllChannelsUnderCategory(s, guildID, channelParent) {
-		s.ChannelDelete(channel.ID)
+		_, err := s.ChannelDelete(channel.ID)
+		if err != nil {
+			log.Errorf("Cannot delete channel %s in guild %s", channel.ID, guildID)
+		} else {
+			log.Debugf("Channel %s deleted in guild %s", channel.ID, guildID)
+		}
 	}
 }
 
